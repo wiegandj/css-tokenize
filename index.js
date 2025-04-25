@@ -51,77 +51,78 @@ function Tokenize() {
 
 Tokenize.prototype._transform = function(buf, enc, next) {
   var input = this._input = this._input ? Buffer.concat([ this._input, buf ]) : buf;
-  
+
   for(var i = this._position; i < input.length; i++) {
     var c = input[i];
     var state = this.state[this.state.length - 1][0],
-      stateData = this.state[this.state.length - 1][1],
-      end = null;
-    
+        stateData = this.state[this.state.length - 1][1],
+        end = null;
+
     // console.log(i, c, this.state);
-    
+
     /* comments */
     if(i === input.length - 1
-    && (('comment' === state && c === codes.asterisk)
-        || c === codes.fslash)) {
+        && (('comment' === state && c === codes.asterisk)
+            || c === codes.fslash)) {
       // need more data: save unprocessed input and bail out.
       this._input = this._input.slice(this._position);
       break;
     }
     else if('comment' !== state
-    && c === codes.fslash && input[i+1] === codes.asterisk) {
+        && c === codes.fslash && input[i+1] === codes.asterisk) {
       if('root' !== state) end = [].concat(state);
       i--; //backup to save the '/*' for the comment token.
       this.state.push(['comment'])
     }
     else if('comment' === state
-    && c === codes.asterisk && input[i+1] === codes.fslash) {
+        && c === codes.asterisk && input[i+1] === codes.fslash) {
       i++;
       end = this.state.pop();
     }
     /* strings */
     else if('string' === state
-    && c === stateData) {
+        && c === stateData) {
       this.state.pop();
     }
     else if('string' !== state
-    && codes.squote === c || codes.dquote === c) {
+        && 'comment' !== state
+        && codes.squote === c || codes.dquote === c) {
       this.state.push(['string', c]);
     }
-    /* brackets */
-    // else if(codes.lparen === c) {
-    //   this.state.push(['brackets', codes.rparen]);
-    // }
-    // else if(codes.lbrack === c) {
-    //   this.state.push(['brackets', codes.rbrack]);
-    // }
-    // else if('brackets' === state
-    // && c === stateData) {
-    //   this.state.pop();
-    // }
+        /* brackets */
+        // else if(codes.lparen === c) {
+        //   this.state.push(['brackets', codes.rparen]);
+        // }
+        // else if(codes.lbrack === c) {
+        //   this.state.push(['brackets', codes.rbrack]);
+        // }
+        // else if('brackets' === state
+        // && c === stateData) {
+        //   this.state.pop();
+        // }
     /* rules */
     else if('rule_start' === state
-    && c === codes.lbrace) {
+        && c === codes.lbrace) {
       end = this.state.pop();
       this.state.push(['rule']);
     }
     else if('atrule_start' === state
-    && c === codes.lbrace) {
+        && c === codes.lbrace) {
       end = this.state.pop();
       this.state.push(['atrule']);
     }
     else if(('rule' === state || 'atrule' === state)
-    && c === codes.rbrace) {
+        && c === codes.rbrace) {
       end = this.state.pop();
       i--; // backup to save the ending curly brace for the rule_end token.
       this.state.push([ state + '_end' ]);
     }
     else if(('rule_end' === state || 'atrule_end' === state)
-    && c === codes.rbrace) {
+        && c === codes.rbrace) {
       end = this.state.pop();
     }
     else if('root' === state
-    && c === codes.at) {
+        && c === codes.at) {
       end = ['space'];
       i--;
       this.state.push(['atrule_start'])
@@ -140,7 +141,7 @@ Tokenize.prototype._transform = function(buf, enc, next) {
         this.state.push(['rule_start']);
       }
     }
-    
+
     if(end && i >= this._position) {
       var out;
       this.push(out = [end[0], input.slice(this._position, i+1)]);
@@ -148,7 +149,7 @@ Tokenize.prototype._transform = function(buf, enc, next) {
       end = null;
     }
   }
-  
+
   if(this._position < this._input.length) {
     this._input = this._input.slice(this._position);
     this._position = 0;
